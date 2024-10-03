@@ -1,26 +1,32 @@
-# Next-Generation Sequencing (NGS) Analysis Tutorial on Linux
+# Comprehensive NGS Data Analysis Tutorial for Beginners
 
-Welcome to this comprehensive tutorial on performing Next-Generation Sequencing (NGS) analysis using a newly built Linux setup. This guide is designed for students and researchers new to NGS and bioinformatics. It provides step-by-step instructions on setting up the required applications, organizing your workspace, and conducting NGS analysis using real data.
+Welcome to this detailed tutorial on Next-Generation Sequencing (NGS) data analysis using a Linux system. This guide is tailored for beginners and covers each step extensively, explaining the purpose, command parameters, alternative tools, and relevant information to help you understand and perform NGS data analysis effectively.
 
-We will use the Autism Multiplex data from Indian Families (SRR26688467) as a case study, guiding you through the entire process from system setup to variant annotation.
+We will use a publicly available dataset (SRA accession number: **SRR26688467**) from a study on autism in Indian families. This dataset represents whole exome sequencing data from an individual with autism, providing a real-world example for our analysis.
 
 ---
 
 ## Table of Contents
 
 1. [Introduction](#introduction)
-2. [Directory Structure Setup](#directory-structure-setup)
-3. [System Setup](#system-setup)
-4. [Installing Required Applications](#installing-required-applications)
-5. [Downloading Reference Genomes and Databases](#downloading-reference-genomes-and-databases)
-6. [Data Acquisition](#data-acquisition)
-7. [Quality Control with FastQC](#quality-control-with-fastqc)
-8. [Sequence Alignment with BWA](#sequence-alignment-with-bwa)
-9. [Sorting and Processing Alignments](#sorting-and-processing-alignments)
-10. [Variant Calling and Annotation](#variant-calling-and-annotation)
-    - [Installing and Running snpEff](#installing-and-running-snpeff)
-11. [Summary](#summary)
-12. [Additional Resources](#additional-resources)
+2. [Prerequisites](#prerequisites)
+3. [Setting Up the Working Environment](#setting-up-the-working-environment)
+4. [Overview of the Analysis Pipeline](#overview-of-the-analysis-pipeline)
+5. [Detailed Step-by-Step Tutorial](#detailed-step-by-step-tutorial)
+    - [Step 1: Data Acquisition](#step-1-data-acquisition)
+    - [Step 2: Quality Assessment with FastQC](#step-2-quality-assessment-with-fastqc)
+    - [Step 3: Preparing the Reference Genome](#step-3-preparing-the-reference-genome)
+    - [Step 4: Read Alignment with BWA MEM](#step-4-read-alignment-with-bwa-mem)
+    - [Step 5: Converting and Sorting Alignments](#step-5-converting-and-sorting-alignments)
+    - [Step 6: Marking Duplicates](#step-6-marking-duplicates)
+    - [Step 7: Base Quality Score Recalibration (BQSR)](#step-7-base-quality-score-recalibration-bqsr)
+    - [Step 8: Variant Calling with GATK HaplotypeCaller](#step-8-variant-calling-with-gatk-haplotypecaller)
+    - [Step 9: Variant Filtering](#step-9-variant-filtering)
+    - [Step 10: Variant Annotation with snpEff](#step-10-variant-annotation-with-snpeff)
+    - [Step 11: Extracting Specific Variants with SnpSift](#step-11-extracting-specific-variants-with-snpsift)
+6. [Alternative Tools and Methods](#alternative-tools-and-methods)
+7. [Conclusion](#conclusion)
+8. [Additional Resources](#additional-resources)
 
 ---
 
@@ -28,8 +34,7 @@ We will use the Autism Multiplex data from Indian Families (SRR26688467) as a ca
 
 ### Study Overview
 
-- **Study:** Whole Exome Sequencing on a multiplex family of Indian origin
-- **SRX ID:** SRX22388233
+- **Study:** Whole Exome Sequencing of an individual with autism from an Indian multiplex family.
 - **SRA Run ID:** SRR26688467
 - **Instrument:** Illumina HiSeq X
 - **Strategy:** Whole Exome Sequencing (WXS)
@@ -38,781 +43,624 @@ We will use the Autism Multiplex data from Indian Families (SRR26688467) as a ca
 
 **Data Summary:**
 
-- **Run:** 1 run
-- **Number of Spots:** 23.5 Million
-- **Number of Bases:** 6.7 Gigabases
-- **Download Size:** 2.8 Gigabytes
+- **Number of Reads:** Approximately 23.5 million paired-end reads
 - **Read Length:** 2x150 bp
-- **Sequencing Depth:** 80-100X on target
+- **Sequencing Depth:** 80-100X on target regions
 
-### Experimental Design
+### Objective
 
-Whole-Exome Sequencing (WXS) libraries were prepared using the SureSelectXT Human All Exon (V5) kit. The workflow included DNA shearing, end repair, adenylation, adapter ligation, and hybridization with exome-specific biotinylated capture probes. The enriched libraries were sequenced on the Illumina HiSeq X platform to generate paired-end reads.
+The goal of this tutorial is to guide you through the entire NGS data analysis pipeline, from raw data acquisition to variant annotation, providing detailed explanations suitable for beginners.
 
 ---
 
-## Directory Structure Setup
+## Prerequisites
 
-### Importance of an Organized Directory Structure
+### Hardware Requirements
 
-An organized directory structure is crucial for efficient data management, reproducibility, and collaboration. It helps in keeping raw data, processed data, tools, scripts, and results systematically arranged, making the analysis workflow more streamlined.
+- A Linux system with at least 8 GB of RAM (16 GB or more recommended)
+- Sufficient storage space (at least 50 GB) for data and intermediate files
 
-### Recommended Directory Layout
+### Software Requirements
 
-We recommend the following directory structure for your NGS analysis project:
+Ensure that the following software is installed on your system:
 
+- **Java (JDK 1.8 or higher)**
+- **BWA (Burrows-Wheeler Aligner)**
+- **Samtools**
+- **FastQC**
+- **Picard Tools**
+- **GATK (Genome Analysis Toolkit) version 4.x**
+- **snpEff**
+- **SRA Toolkit**
+- **Tabix**
+- **SnpSift** (part of snpEff)
+
+### Installation Resources
+
+- **Java:** [Install OpenJDK](https://openjdk.java.net/install/)
+- **BWA:** [BWA Installation Guide](http://bio-bwa.sourceforge.net/bwa.shtml#13)
+- **Samtools:** [Samtools Installation Guide](http://www.htslib.org/download/)
+- **FastQC:** [FastQC Installation Guide](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/)
+- **Picard Tools:** [Picard Installation Guide](https://broadinstitute.github.io/picard/)
+- **GATK:** [GATK Installation Guide](https://gatk.broadinstitute.org/hc/en-us/articles/360035889991)
+- **snpEff:** [snpEff Installation Guide](http://snpeff.sourceforge.net/download.html)
+- **SRA Toolkit:** [SRA Toolkit Installation Guide](https://github.com/ncbi/sra-tools/wiki/01.-Downloading-SRA-Toolkit)
+- **Tabix:** [htslib Installation Guide](http://www.htslib.org/download/)
+
+---
+
+## Setting Up the Working Environment
+
+### Directory Structure
+
+Creating a well-organized directory structure is crucial for managing your data and results effectively.
+
+```bash
+mkdir -p ~/NGS_tutorial/{data/{raw,processed,references},results/{qc_report,alignment,variants,annotations},tools,scripts,logs}
 ```
-~/NGS_course/
-├── data/
-│   ├── raw/
-│   ├── processed/
-│   └── references/
-├── tools/
-│   ├── bwa/
-│   ├── samtools/
-│   ├── fastqc/
-│   ├── picard/
-│   ├── snpEff/
-│   ├── gatk/
-│   └── sra-toolkit/
-├── results/
-│   ├── qc_report/
-│   ├── alignment/
-│   ├── variants/
-│   └── annotations/
-├── scripts/
-└── logs/
-```
 
-**Directory Breakdown:**
+**Explanation:**
 
-- **data/**: Contains all data-related files.
-  - **raw/**: Stores raw sequencing data (FASTQ files).
-  - **processed/**: Holds processed data such as aligned reads (SAM/BAM files) and variant calls (VCF files).
-  - **references/**: Contains reference genomes, annotation files, and databases.
+- **`~/NGS_tutorial/`**: Main project directory.
+- **`data/`**: Contains raw and processed data.
+  - **`raw/`**: Stores raw sequencing data (FASTQ files).
+  - **`processed/`**: Stores processed data (BAM, VCF files).
+  - **`references/`**: Contains reference genomes and databases.
+- **`results/`**: Stores output from various analysis steps.
+  - **`qc_report/`**: FastQC reports.
+  - **`alignment/`**: Alignment files (SAM/BAM).
+  - **`variants/`**: Variant files (VCF).
+  - **`annotations/`**: Annotated variant files.
+- **`tools/`**: Place for installing tools if needed.
+- **`scripts/`**: Contains scripts for automation.
+- **`logs/`**: Stores log files.
 
-- **tools/**: Houses all bioinformatics tools and their related files.
-  - Each tool (e.g., BWA, Samtools) has its own subdirectory for organization.
+---
 
-- **results/**: Stores output files from various analysis steps.
-  - **qc_report/**: FastQC reports.
-  - **alignment/**: Aligned SAM/BAM files.
-  - **variants/**: Variant call files (VCF).
-  - **annotations/**: Annotated variant files.
+## Overview of the Analysis Pipeline
 
-- **scripts/**: Contains custom scripts for automating tasks.
+1. **Data Acquisition:** Download raw sequencing data from SRA.
+2. **Quality Assessment:** Evaluate raw data quality using FastQC.
+3. **Reference Genome Preparation:** Download and prepare the reference genome.
+4. **Alignment:** Map reads to the reference genome using BWA MEM.
+5. **Post-Alignment Processing:** Sort, convert, and mark duplicates.
+6. **Base Quality Score Recalibration (BQSR):** Correct systematic errors in base quality scores.
+7. **Variant Calling:** Identify genetic variants using GATK HaplotypeCaller.
+8. **Variant Filtering:** Apply quality filters to variants.
+9. **Variant Annotation:** Annotate variants with snpEff.
+10. **Variant Extraction:** Extract specific variants of interest using SnpSift.
 
-- **logs/**: Stores log files generated during analysis.
+---
 
-### Creating the Directory Structure
+## Detailed Step-by-Step Tutorial
+
+### Step 1: Data Acquisition
+
+**Objective:** Obtain raw sequencing data for analysis.
 
 **Command:**
 
 ```bash
-# Navigate to home directory
-cd ~
-
-# Create main project directory with subdirectories
-mkdir -p NGS_course/{data/{raw,processed,references},tools/{bwa,samtools,fastqc,picard,snpEff,gatk,sra-toolkit},results/{qc_report,alignment,variants,annotations},scripts,logs}
-
-# Verify the directory structure
-tree NGS_course
-```
-
-**Rationale:**
-
-- **`mkdir -p`:** Creates directories and parent directories as needed.
-- **`tree NGS_course`:** Displays the directory structure to verify correctness (install `tree` if necessary).
-
----
-
-## System Setup
-
-### Update the System
-
-It's essential to keep your system up-to-date to ensure compatibility and security.
-
-**Commands:**
-
-```bash
-sudo apt-get update
-sudo apt-get upgrade -y
-```
-
-**Rationale:**
-
-- **`sudo apt-get update`:** Updates the list of available packages.
-- **`sudo apt-get upgrade -y`:** Installs the newest versions of all packages.
-
-### Verify Current Directory
-
-Before proceeding, ensure you're in the correct working directory.
-
-**Commands:**
-
-```bash
-pwd
-ls
-```
-
-**Rationale:**
-
-- **`pwd`:** Displays the current working directory.
-- **`ls`:** Lists the contents of the directory.
-
-### Navigate to the Project Directory
-
-**Command:**
-
-```bash
-cd ~/NGS_course/
-```
-
-**Rationale:**
-
-- Moves you into the main project directory where all subsequent work will be conducted.
-
----
-
-## Installing Required Applications
-
-We will install the necessary bioinformatics tools within the `tools/` directory to keep them organized and separate from system-wide installations.
-
-### General Installation Note
-
-Some tools will be installed using `apt-get` (system-wide), while others will be downloaded and placed in specific directories.
-
-### 1. BWA (Burrows-Wheeler Aligner)
-
-**Purpose:** Align sequencing reads to a reference genome.
-
-**Commands:**
-
-```bash
-# Navigate to tools directory
-cd ~/NGS_course/tools/bwa/
-
-# Install BWA using apt-get
-sudo apt-get install bwa -y
-
-# Verify installation
-bwa
-```
-
-**Rationale:**
-
-- **`sudo apt-get install bwa -y`:** Installs BWA.
-- **`bwa`:** Checks that BWA is accessible from the command line.
-
-### 2. Samtools
-
-**Purpose:** Manipulate SAM/BAM files.
-
-**Commands:**
-
-```bash
-# Navigate to tools directory
-cd ~/NGS_course/tools/samtools/
-
-# Install Samtools using apt-get
-sudo apt-get install samtools -y
-
-# Verify installation
-samtools --version
-```
-
-**Rationale:**
-
-- Ensures that Samtools is installed and its version is displayed.
-
-### 3. FastQC
-
-**Purpose:** Perform quality control checks on raw sequencing data.
-
-**Commands:**
-
-```bash
-# Navigate to tools directory
-cd ~/NGS_course/tools/fastqc/
-
-# Install FastQC using apt-get
-sudo apt-get install fastqc -y
-
-# Verify installation
-fastqc --version
-```
-
-**Rationale:**
-
-- Confirms FastQC is installed and ready for use.
-
-### 4. Tabix
-
-**Purpose:** Index genomic data in tab-delimited files.
-
-**Commands:**
-
-```bash
-# Navigate to tools directory
-cd ~/NGS_course/tools/tabix/
-
-# Install Tabix using apt-get
-sudo apt-get install tabix -y
-
-# Verify installation
-tabix --version
-```
-
-**Rationale:**
-
-- Ensures Tabix is installed correctly.
-
-### 5. Picard Tools
-
-**Purpose:** Manipulate high-throughput sequencing (HTS) data and formats.
-
-**Commands:**
-
-```bash
-# Navigate to Picard tools directory
-cd ~/NGS_course/tools/picard/
-
-# Download Picard JAR file
-wget https://github.com/broadinstitute/picard/releases/download/2.18.1/picard.jar
-
-# Verify download
-ls picard.jar
-```
-
-**Rationale:**
-
-- Downloads Picard directly into the tools directory.
-- Verifies that `picard.jar` is present.
-
-### 6. snpEff
-
-**Purpose:** Annotate and predict effects of genetic variants.
-
-#### Installing snpEff
-
-**Commands:**
-
-```bash
-# Navigate to tools directory
-cd ~/NGS_course/tools/snpEff/
-
-# Download snpEff
-wget https://snpeff.blob.core.windows.net/versions/snpEff_latest_core.zip
-
-# Unzip snpEff
-unzip snpEff_latest_core.zip
-
-# Navigate to snpEff directory
-cd snpEff/
-
-# Verify installation
-ls snpEff.jar
-```
-
-**Rationale:**
-
-- Downloads and unzips snpEff in the appropriate directory.
-- Ensures that the `snpEff.jar` file is present.
-
-#### Downloading snpEff Databases
-
-Since we are using the hg38 reference genome, we need to download the corresponding snpEff database `GRCh38.99`.
-
-**Commands:**
-
-```bash
-# Download the database for GRCh38.99
-java -jar snpEff.jar download GRCh38.99
-
-# Verify available databases
-java -jar snpEff.jar databases | grep -i GRCh38
-```
-
-**Rationale:**
-
-- Downloads the database corresponding to the GRCh38 (hg38) reference genome.
-- Verifies that the database is installed.
-
-### 7. GATK (Genome Analysis Toolkit)
-
-**Purpose:** Perform variant discovery in high-throughput sequencing data.
-
-**Commands:**
-
-```bash
-# Navigate to GATK tools directory
-cd ~/NGS_course/tools/gatk/
-
-# Download GATK
-wget https://github.com/broadinstitute/gatk/releases/download/4.6.0.0/gatk-4.6.0.0.zip
-
-# Unzip GATK
-unzip gatk-4.6.0.0.zip
-
-# Move GATK jar file to tools directory
-mv gatk-4.6.0.0/gatk-package-4.6.0.0-local.jar ./
-
-# Verify installation
-java -jar gatk-package-4.6.0.0-local.jar --help
-```
-
-**Rationale:**
-
-- Downloads GATK and places the JAR file in the tools directory.
-- Checks that GATK is accessible.
-
-### 8. SRA Toolkit
-
-**Purpose:** Download and convert SRA data to FASTQ format.
-
-**Commands:**
-
-```bash
-# Navigate to SRA Toolkit tools directory
-cd ~/NGS_course/tools/sra-toolkit/
-
-# Download SRA Toolkit
-wget https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/sratoolkit.current-ubuntu64.tar.gz
-
-# Extract the toolkit
-tar -xzf sratoolkit.current-ubuntu64.tar.gz
-
-# Add SRA Toolkit to PATH
-echo 'export PATH=$PATH:~/NGS_course/tools/sra-toolkit/sratoolkit.*/bin' >> ~/.bashrc
-source ~/.bashrc
-
-# Verify installation
-fastq-dump --version
-```
-
-**Rationale:**
-
-- Downloads and extracts the SRA Toolkit.
-- Adds the toolkit's `bin` directory to the PATH variable for easy access.
-- Verifies that `fastq-dump` is available.
-
-### 9. Additional Utilities
-
-**Commands:**
-
-```bash
-sudo apt-get install libxml2-utils -y
-```
-
-**Rationale:**
-
-- Installs utilities required by some bioinformatics tools (e.g., `xmllint`).
-
----
-
-## Downloading Reference Genomes and Databases
-
-### 1. Human Reference Genome (hg38)
-
-**Purpose:** Provide a reference genome for read alignment.
-
-**Commands:**
-
-```bash
-# Navigate to references directory
-cd ~/NGS_course/data/references/
-
-# Download the hg38 reference genome
-wget https://hgdownload.cse.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz
-
-# Verify download
-ls -lh hg38.fa.gz
-```
-
-**Rationale:**
-
-- Downloads the compressed FASTA file for the hg38 human reference genome.
-- Ensures the file is present and checks its size.
-
-### 2. dbSNP Database
-
-**Purpose:** Annotate known variants during variant calling and annotation.
-
-**Commands:**
-
-```bash
-# Navigate to references directory
-cd ~/NGS_course/data/references/
-
-# Download dbSNP VCF file
-wget https://ftp.ncbi.nih.gov/snp/organisms/human_9606_b151_GRCh38p7/VCF/GATK/common_all_20180418.vcf.gz
-
-# Rename for clarity
-mv common_all_20180418.vcf.gz common_dbsnp.vcf.gz
-
-# Verify download
-ls -lh common_dbsnp.vcf.gz
-```
-
-**Rationale:**
-
-- Downloads the dbSNP database in VCF format.
-- Renames the file for easier identification.
-- Confirms the presence of the file.
-
----
-
-## Data Acquisition
-
-### Download FASTQ Files Using SRA Toolkit
-
-**Purpose:** Obtain the raw sequencing data for analysis.
-
-**Commands:**
-
-```bash
-# Navigate to raw data directory
-cd ~/NGS_course/data/raw/
-
-# Download FASTQ files
+cd ~/NGS_tutorial/data/raw/
 fastq-dump --split-files SRR26688467
-
-# List the downloaded files
-ls -lh SRR26688467_*
 ```
 
-**Rationale:**
+**Explanation:**
 
-- **`fastq-dump --split-files`:** Downloads and splits paired-end reads into separate files.
-- Ensures that the FASTQ files (`SRR26688467_1.fastq` and `SRR26688467_2.fastq`) are present and checks their sizes.
+- **`cd ~/NGS_tutorial/data/raw/`**: Navigate to the directory where raw data will be stored.
+- **`fastq-dump --split-files SRR26688467`**: Downloads the data and splits paired-end reads into two files:
+  - **`SRR26688467_1.fastq`**: Forward reads.
+  - **`SRR26688467_2.fastq`**: Reverse reads.
 
----
+**Parameters:**
 
-## Quality Control with FastQC
+- **`--split-files`**: Splits paired-end reads into separate files.
+- **`SRR26688467`**: SRA accession number for the sample.
 
-### Purpose
+**Why This Step is Important:**
 
-Assess the quality of the raw sequencing data to identify any issues before proceeding with analysis.
+- Acquiring raw data is essential to start the analysis.
 
-### Steps
+**Alternative Tools:**
 
-1. **Create a QC Report Directory**
-
-   **Command:**
-
-   ```bash
-   mkdir -p ~/NGS_course/results/qc_report/
-   ```
-
-   **Rationale:**
-
-   - Organizes QC reports in a dedicated directory.
-
-2. **Run FastQC**
-
-   **Command:**
-
-   ```bash
-   fastqc -o ~/NGS_course/results/qc_report/ ~/NGS_course/data/raw/SRR26688467_1.fastq ~/NGS_course/data/raw/SRR26688467_2.fastq
-   ```
-
-   **Rationale:**
-
-   - **`-o`:** Specifies the output directory.
-   - Processes both forward and reverse reads.
-
-3. **View QC Reports**
-
-   **Commands:**
-
-   ```bash
-   cd ~/NGS_course/results/qc_report/
-   ls
-   ```
-
-   **Rationale:**
-
-   - Lists the generated QC reports.
-   - Reports can be viewed using a web browser to assess data quality metrics like base quality scores, GC content, and sequence duplication levels.
+- **`prefetch`** and **`fasterq-dump`** from the SRA Toolkit can be used for faster downloads and conversions.
 
 ---
 
-## Sequence Alignment with BWA
+### Step 2: Quality Assessment with FastQC
 
-### Purpose
+**Objective:** Assess the quality of raw sequencing data.
 
-Align sequencing reads to the reference genome to identify where each read originated from.
+**Command:**
 
-### Steps
+```bash
+mkdir -p ~/NGS_tutorial/results/qc_report/
+fastqc -o ~/NGS_tutorial/results/qc_report/ SRR26688467_1.fastq SRR26688467_2.fastq
+```
 
-1. **Index the Reference Genome**
+**Explanation:**
 
-   **Commands:**
+- **`fastqc`**: Runs quality checks on the FASTQ files.
+- **`-o`**: Specifies the output directory for the reports.
 
-   ```bash
-   cd ~/NGS_course/data/references/
+**Parameters:**
 
-   # Decompress the reference genome if necessary
-   gunzip hg38.fa.gz
+- **`SRR26688467_1.fastq` and `SRR26688467_2.fastq`**: Input FASTQ files.
+- **`-o ~/NGS_tutorial/results/qc_report/`**: Output directory for the FastQC reports.
 
-   # Index the reference genome
-   bwa index hg38.fa
+**Why This Step is Important:**
 
-   # Verify index files
-   ls hg38.fa.*
-   ```
+- Identifies potential issues such as low-quality scores, adapter contamination, GC bias, and overrepresented sequences.
+- Helps decide if data trimming or cleaning is required.
 
-   **Rationale:**
+**Alternative Tools:**
 
-   - Decompresses the reference genome if it's compressed (BWA requires an uncompressed FASTA file).
-   - Prepares the reference genome for alignment.
-   - BWA creates index files required for efficient alignment.
-
-2. **Perform Alignment**
-
-   **Create Alignment Directory**
-
-   ```bash
-   mkdir -p ~/NGS_course/results/alignment/
-   ```
-
-   **Run BWA MEM**
-
-   ```bash
-   bwa mem -M -t 6 -R '@RG\tID:sample_1\tLB:sample_1\tPL:ILLUMINA\tSM:sample_1' \
-   ~/NGS_course/data/references/hg38.fa \
-   ~/NGS_course/data/raw/SRR26688467_1.fastq \
-   ~/NGS_course/data/raw/SRR26688467_2.fastq \
-   > ~/NGS_course/results/alignment/aligned_reads.sam
-   ```
-
-   **Rationale:**
-
-   - **`-M`:** Marks shorter split hits as secondary, important for downstream compatibility with GATK.
-   - **`-t 6`:** Uses 6 threads for faster processing.
-   - **`-R`:** Adds read group information, crucial for downstream analyses like variant calling.
-     - **ID:** Read group identifier.
-     - **LB:** Library identifier.
-     - **PL:** Platform/technology used (e.g., ILLUMINA).
-     - **SM:** Sample name.
-   - Aligns paired-end reads to the reference genome.
-   - Outputs the alignment in SAM format.
+- **FastP**: Performs both quality control and trimming.
+- **MultiQC**: Aggregates results from multiple samples.
 
 ---
 
-## Sorting and Processing Alignments
+### Step 3: Preparing the Reference Genome
 
-### Purpose
+**Objective:** Download and prepare the reference genome for alignment and variant calling.
 
-Convert SAM files to BAM format, sort them, and prepare for variant calling.
+**Command:**
 
-### Steps
+```bash
+cd ~/NGS_tutorial/data/references/
+# Download the hg38 reference genome
+wget -O hg38.fa.gz ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/001/405/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.gz
+gunzip hg38.fa.gz
+```
 
-1. **Sort the SAM File**
+**Explanation:**
 
-   **Commands:**
+- **`wget`**: Downloads files from the internet.
+- **`-O hg38.fa.gz`**: Saves the downloaded file as `hg38.fa.gz`.
+- **`gunzip hg38.fa.gz`**: Decompresses the gzipped reference genome.
 
-   ```bash
-   cd ~/NGS_course/results/alignment/
+**Parameters:**
 
-   # Convert SAM to sorted BAM using Picard
-   java -jar ~/NGS_course/tools/picard/picard.jar SortSam \
-   INPUT=aligned_reads.sam \
-   OUTPUT=sorted_reads.bam \
-   SORT_ORDER=coordinate \
-   VALIDATION_STRINGENCY=SILENT
-   ```
+- **URL**: The link to the hg38 reference genome.
+  - **Note**: Ensure you have the correct version matching your analysis.
 
-   **Rationale:**
+**Why This Step is Important:**
 
-   - Converts the large SAM file to a compressed BAM file.
-   - Sorts the reads by coordinate, which is required for many downstream tools.
-   - **`VALIDATION_STRINGENCY=SILENT`:** Suppresses validation errors (useful if your SAM file has minor formatting issues).
+- A reference genome is required for aligning reads and identifying variants.
 
-2. **Verify the Sorted BAM File**
+**Alternative Tools:**
 
-   **Command:**
-
-   ```bash
-   ls -lh sorted_reads.bam
-   ```
-
-   **Rationale:**
-
-   - Checks the size and presence of the sorted BAM file.
-
-3. **Index the Sorted BAM File**
-
-   **Command:**
-
-   ```bash
-   samtools index sorted_reads.bam
-   ```
-
-   **Rationale:**
-
-   - Creates an index file for the BAM file, allowing for fast random access during variant calling.
+- **`rsync`**: Can be used for downloading files.
+- **Reference Genomes from UCSC or Ensembl**: Alternative sources for genomes.
 
 ---
 
-## Variant Calling and Annotation
+**Indexing the Reference Genome with BWA**
 
-### Purpose
+**Command:**
 
-Identify genetic variants (e.g., SNPs, indels) from the aligned reads and annotate them for biological significance.
+```bash
+bwa index hg38.fa
+```
 
-### Steps
+**Explanation:**
 
-1. **Optional: Mark Duplicates**
+- **`bwa index hg38.fa`**: Indexes the reference genome to prepare for alignment.
 
-   **Commands:**
+**Parameters:**
 
-   ```bash
-   # Mark duplicates using Picard
-   java -jar ~/NGS_course/tools/picard/picard.jar MarkDuplicates \
-   INPUT=sorted_reads.bam \
-   OUTPUT=dedup_reads.bam \
-   METRICS_FILE=dedup_metrics.txt \
-   CREATE_INDEX=true \
-   VALIDATION_STRINGENCY=SILENT
+- **`hg38.fa`**: The reference genome FASTA file.
 
-   # Verify the deduplicated BAM file
-   ls -lh dedup_reads.bam
-   ```
+**Why This Step is Important:**
 
-   **Rationale:**
+- Indexing allows BWA to perform efficient alignments.
 
-   - Identifies and marks duplicate reads that may arise from PCR amplification.
-   - Reduces false-positive variant calls.
-   - **`CREATE_INDEX=true`:** Automatically indexes the deduplicated BAM file.
-   - **`METRICS_FILE`:** Outputs duplication metrics.
+**Alternative Tools:**
 
-2. **Variant Calling with GATK**
-
-   **Commands:**
-
-   ```bash
-   # Navigate to alignment directory
-   cd ~/NGS_course/results/alignment/
-
-   # Call variants using GATK HaplotypeCaller
-   java -jar ~/NGS_course/tools/gatk/gatk-package-4.6.0.0-local.jar HaplotypeCaller \
-   -R ~/NGS_course/data/references/hg38.fa \
-   -I dedup_reads.bam \
-   -O ~/NGS_course/results/variants/raw_variants.vcf.gz \
-   -ERC GVCF \
-   --native-pair-hmm-threads 6
-   ```
-
-   **Rationale:**
-
-   - **`-ERC GVCF`:** Outputs a GVCF file, useful for joint genotyping if you have multiple samples.
-   - **`--native-pair-hmm-threads`:** Allocates threads to speed up computation.
-   - Outputs a VCF file containing raw variant calls.
-
-3. **Annotate Variants with snpEff**
-
-   **Refer to the [Installing and Running snpEff](#installing-and-running-snpeff) section for detailed instructions.**
+- **Bowtie2**: Another aligner that uses its own indexing method.
 
 ---
 
-## Installing and Running snpEff
+### Step 4: Read Alignment with BWA MEM
 
-### Purpose
+**Objective:** Align sequencing reads to the reference genome.
 
-Annotate variants to predict their impact on genes and proteins using the correct reference genome database.
+**Command:**
 
-### Steps
+```bash
+cd ~/NGS_tutorial/results/alignment/
+bwa mem -M -t 6 -R '@RG\tID:SRR26688467\tSM:01S2\tPL:ILLUMINA\tLB:lib1' \
+~/NGS_tutorial/data/references/hg38.fa \
+~/NGS_tutorial/data/raw/SRR26688467_1.fastq \
+~/NGS_tutorial/data/raw/SRR26688467_2.fastq \
+> aligned_reads.sam
+```
 
-1. **Navigate to snpEff Directory**
+**Explanation:**
 
-   **Command:**
+- **`bwa mem`**: Uses the BWA-MEM algorithm for alignment.
+- **`-M`**: Marks shorter split hits as secondary (important for Picard compatibility).
+- **`-t 6`**: Uses 6 CPU threads.
+- **`-R '@RG\tID:SRR26688467\tSM:01S2\tPL:ILLUMINA\tLB:lib1'`**: Specifies read group information.
 
-   ```bash
-   cd ~/NGS_course/tools/snpEff/snpEff/
-   ```
+**Parameters Explained:**
 
-   **Rationale:**
+- **`-M`**: Necessary for compatibility with downstream tools like Picard and GATK.
+- **`-t 6`**: Adjust based on available CPU cores.
+- **`-R`**: Read group header line, important for GATK. Components:
+  - **`ID`**: Read group identifier (e.g., sample name or run ID).
+  - **`SM`**: Sample name.
+  - **`PL`**: Platform used for sequencing (e.g., ILLUMINA).
+  - **`LB`**: Library identifier.
+- **`hg38.fa`**: Reference genome.
+- **`SRR26688467_1.fastq` and `SRR26688467_2.fastq`**: Input FASTQ files.
 
-   - Ensures you're in the correct directory to run snpEff.
+**Why This Step is Important:**
 
-2. **Run snpEff**
+- Aligns reads to the reference genome, which is essential for identifying their genomic positions and detecting variants.
 
-   **Commands:**
+**Alternative Tools:**
 
-   ```bash
-   java -Xmx8g -jar snpEff.jar GRCh38.99 \
-   ~/NGS_course/results/variants/raw_variants.vcf.gz \
-   > ~/NGS_course/results/annotations/annotated_variants.vcf
-   ```
-
-   **Rationale:**
-
-   - **`-Xmx8g`:** Allocates 8GB of memory.
-   - **`GRCh38.99`:** Specifies the genome build matching hg38.
-   - Outputs an annotated VCF file.
-
-3. **Verbose Mode (Optional)**
-
-   **Command:**
-
-   ```bash
-   java -Xmx8g -jar snpEff.jar -v GRCh38.99 \
-   ~/NGS_course/results/variants/raw_variants.vcf.gz \
-   > ~/NGS_course/results/annotations/annotated_variants.vcf
-   ```
-
-   **Rationale:**
-
-   - **`-v`:** Provides detailed logging for troubleshooting.
-
-4. **View Annotated Variants**
-
-   **Command:**
-
-   ```bash
-   head ~/NGS_course/results/annotations/annotated_variants.vcf
-   ```
-
-   **Rationale:**
-
-   - Checks the annotated VCF file to confirm that annotations are present.
+- **Bowtie2**: An alternative aligner suitable for longer reads.
+- **HISAT2**: Often used for RNA-Seq data but can align DNA reads as well.
 
 ---
 
-## Summary
+### Step 5: Converting and Sorting Alignments
 
-### What We've Achieved
+**Objective:** Convert the SAM file to BAM format and sort the alignments.
 
-- **System and Directory Setup:** Established a well-organized directory structure and updated the Linux system.
-- **Installed Essential Tools:** Installed BWA, Samtools, FastQC, Tabix, Picard, snpEff, GATK, and SRA Toolkit in a structured manner.
-- **Downloaded References and Databases:** Acquired the hg38 reference genome and dbSNP database.
-- **Data Acquisition:** Downloaded raw sequencing data using the SRA Toolkit.
-- **Quality Control:** Assessed the quality of raw data with FastQC.
-- **Read Alignment:** Aligned reads to the reference genome using BWA.
-- **Data Processing:** Converted and sorted alignment files using Picard and Samtools.
-- **Variant Calling:** Identified genetic variants using GATK HaplotypeCaller.
-- **Variant Annotation:** Annotated variants with snpEff using the correct database for hg38 (GRCh38.99).
+**Command:**
 
-### Next Steps
+```bash
+java -jar ~/NGS_tutorial/tools/picard.jar SortSam \
+INPUT=aligned_reads.sam \
+OUTPUT=sorted_reads.bam \
+SORT_ORDER=coordinate \
+VALIDATION_STRINGENCY=SILENT
+```
 
-- **Variant Filtering:** Apply filters to identify high-confidence variants.
-- **Interpretation:** Analyze the biological significance of the variants.
-- **Reporting:** Generate reports and visualizations for presentation.
-- **Automation:** Develop scripts to automate the pipeline for future analyses.
+**Explanation:**
+
+- **`SortSam`**: A Picard tool to sort SAM/BAM files.
+- **`INPUT`**: The SAM file generated from alignment.
+- **`OUTPUT`**: The output BAM file.
+- **`SORT_ORDER=coordinate`**: Sorts alignments by genomic coordinates.
+- **`VALIDATION_STRINGENCY=SILENT`**: Suppresses warnings about minor formatting issues.
+
+**Parameters Explained:**
+
+- **`INPUT=aligned_reads.sam`**: Specifies the input file.
+- **`OUTPUT=sorted_reads.bam`**: Specifies the output file.
+- **`SORT_ORDER=coordinate`**: Required for many downstream tools.
+- **`VALIDATION_STRINGENCY=SILENT`**: Prevents the program from stopping due to minor issues.
+
+**Why This Step is Important:**
+
+- Sorting is necessary for efficient data retrieval and required by tools like GATK.
+- Converting to BAM format reduces file size and improves processing speed.
+
+**Alternative Tools:**
+
+- **Samtools Sort**: Can also sort and convert SAM to BAM.
+  - **Command**: `samtools sort -o sorted_reads.bam aligned_reads.sam`
+
+---
+
+### Step 6: Marking Duplicates
+
+**Objective:** Identify and mark duplicate reads in the BAM file.
+
+**Command:**
+
+```bash
+java -jar ~/NGS_tutorial/tools/picard.jar MarkDuplicates \
+INPUT=sorted_reads.bam \
+OUTPUT=dedup_reads.bam \
+METRICS_FILE=duplication_metrics.txt \
+CREATE_INDEX=true \
+VALIDATION_STRINGENCY=SILENT
+```
+
+**Explanation:**
+
+- **`MarkDuplicates`**: A Picard tool to mark PCR duplicates.
+- **`METRICS_FILE`**: Outputs duplication statistics.
+- **`CREATE_INDEX=true`**: Generates an index for the output BAM file.
+
+**Parameters Explained:**
+
+- **`INPUT=sorted_reads.bam`**: Input sorted BAM file.
+- **`OUTPUT=dedup_reads.bam`**: Output BAM file with duplicates marked.
+- **`METRICS_FILE=duplication_metrics.txt`**: File to write duplication metrics.
+- **`CREATE_INDEX=true`**: Creates a `.bai` index file.
+- **`VALIDATION_STRINGENCY=SILENT`**: Suppresses warnings.
+
+**Why This Step is Important:**
+
+- Duplicates can arise from PCR amplification and can bias variant calling.
+- Marking duplicates prevents overestimation of variant confidence.
+
+**Alternative Tools:**
+
+- **Samtools Markdup**: A tool within Samtools suite.
+- **GATK MarkDuplicatesSpark**: A faster, Spark-based alternative.
+
+---
+
+### Step 7: Base Quality Score Recalibration (BQSR)
+
+**Objective:** Adjust base quality scores to correct systematic errors.
+
+**Commands:**
+
+```bash
+java -jar ~/NGS_tutorial/tools/gatk.jar BaseRecalibrator \
+-I dedup_reads.bam \
+-R ~/NGS_tutorial/data/references/hg38.fa \
+--known-sites ~/NGS_tutorial/data/references/common_dbsnp.vcf.gz \
+-O recal_data.table
+
+java -jar ~/NGS_tutorial/tools/gatk.jar ApplyBQSR \
+-R ~/NGS_tutorial/data/references/hg38.fa \
+-I dedup_reads.bam \
+--bqsr-recal-file recal_data.table \
+-O recal_reads.bam
+```
+
+**Explanation:**
+
+- **`BaseRecalibrator`**: Generates a recalibration table based on known sites.
+- **`ApplyBQSR`**: Applies recalibration to adjust base quality scores.
+
+**Parameters Explained (BaseRecalibrator):**
+
+- **`-I dedup_reads.bam`**: Input BAM file with duplicates marked.
+- **`-R hg38.fa`**: Reference genome.
+- **`--known-sites common_dbsnp.vcf.gz`**: VCF file containing known variant sites.
+- **`-O recal_data.table`**: Output recalibration table.
+
+**Parameters Explained (ApplyBQSR):**
+
+- **`--bqsr-recal-file recal_data.table`**: Recalibration table from the previous step.
+- **`-O recal_reads.bam`**: Output BAM file with recalibrated base qualities.
+
+**Why This Step is Important:**
+
+- Corrects systematic biases in base quality scores.
+- Improves the accuracy of variant calling.
+
+**Alternative Tools:**
+
+- **LoFreq**: Has its own recalibration method.
+- **BBMap's RecalibrateBams**: An alternative for recalibration.
+
+---
+
+### Step 8: Variant Calling with GATK HaplotypeCaller
+
+**Objective:** Identify genetic variants from the sequencing data.
+
+**Command:**
+
+```bash
+java -jar ~/NGS_tutorial/tools/gatk.jar HaplotypeCaller \
+-R ~/NGS_tutorial/data/references/hg38.fa \
+-I recal_reads.bam \
+-O ~/NGS_tutorial/results/variants/raw_variants.vcf \
+--native-pair-hmm-threads 6
+```
+
+**Explanation:**
+
+- **`HaplotypeCaller`**: Calls SNPs and INDELs using local de novo assembly.
+- **`--native-pair-hmm-threads 6`**: Allocates threads for computational efficiency.
+
+**Parameters Explained:**
+
+- **`-R hg38.fa`**: Reference genome.
+- **`-I recal_reads.bam`**: Input BAM file with recalibrated base qualities.
+- **`-O raw_variants.vcf`**: Output VCF file with raw variants.
+- **`--native-pair-hmm-threads 6`**: Number of threads for the HMM algorithm.
+
+**Why This Step is Important:**
+
+- Detects potential variants (SNPs and INDELs) in the sample.
+
+**Alternative Tools:**
+
+- **FreeBayes**: A haplotype-based variant detector.
+- **Samtools mpileup and bcftools**: For variant calling.
+
+---
+
+### Step 9: Variant Filtering
+
+**Objective:** Apply quality filters to the called variants to improve reliability.
+
+**Commands:**
+
+```bash
+java -jar ~/NGS_tutorial/tools/gatk.jar VariantFiltration \
+-R ~/NGS_tutorial/data/references/hg38.fa \
+-V raw_variants.vcf \
+--filter-name "QD_filter" \
+--filter-expression "QD < 2.0" \
+--filter-name "FS_filter" \
+--filter-expression "FS > 60.0" \
+--filter-name "MQ_filter" \
+--filter-expression "MQ < 40.0" \
+--filter-name "SOR_filter" \
+--filter-expression "SOR > 4.0" \
+-O filtered_variants.vcf
+```
+
+**Explanation:**
+
+- **`VariantFiltration`**: Applies filters to variants based on specified criteria.
+
+**Parameters Explained:**
+
+- **`--filter-name "QD_filter"`**: Names the filter for variants failing the following expression.
+- **`--filter-expression "QD < 2.0"`**: Quality by Depth less than 2.0.
+- **`FS > 60.0`**, **`MQ < 40.0`**, **`SOR > 4.0`**: Other quality metrics.
+
+**Quality Metrics Explained:**
+
+- **QD (Quality by Depth):** Variant confidence normalized by depth.
+- **FS (Fisher Strand):** Strand bias.
+- **MQ (Mapping Quality):** Root mean square of mapping quality.
+- **SOR (Strand Odds Ratio):** Strand bias using a symmetric odds ratio test.
+
+**Why This Step is Important:**
+
+- Removes likely false positives and low-quality variants.
+
+**Alternative Tools:**
+
+- **VQSR (Variant Quality Score Recalibration)** in GATK (requires large datasets).
+- **bcftools filter**: For filtering VCF files.
+
+---
+
+### Step 10: Variant Annotation with snpEff
+
+**Objective:** Annotate variants to predict their effects on genes and proteins.
+
+**Command:**
+
+```bash
+java -jar ~/NGS_tutorial/tools/snpEff/snpEff.jar -v GRCh38.99 \
+filtered_variants.vcf > annotated_variants.vcf
+```
+
+**Explanation:**
+
+- **`snpEff`**: Annotates variants with information like gene function and effect.
+- **`-v`**: Verbose mode.
+- **`GRCh38.99`**: Database version matching the reference genome.
+
+**Parameters Explained:**
+
+- **`-v`**: Provides detailed logging information.
+- **`GRCh38.99`**: Ensures annotations match the genome build used.
+- **`filtered_variants.vcf`**: Input VCF file after filtering.
+- **`annotated_variants.vcf`**: Output annotated VCF file.
+
+**Why This Step is Important:**
+
+- Adds biological context to variants, facilitating interpretation.
+
+**Alternative Tools:**
+
+- **ANNOVAR**: A tool for variant annotation.
+- **VEP (Variant Effect Predictor)** from Ensembl.
+
+---
+
+### Step 11: Extracting Specific Variants with SnpSift
+
+**Objective:** Extract variants of interest, such as missense variants, from the annotated VCF file.
+
+**Command:**
+
+```bash
+java -jar ~/NGS_tutorial/tools/snpEff/SnpSift.jar filter \
+"(ANN[*].EFFECT has 'missense_variant')" \
+annotated_variants.vcf > missense_variants.vcf
+```
+
+**Explanation:**
+
+- **`SnpSift filter`**: Filters VCF files based on expressions.
+- **`(ANN[*].EFFECT has 'missense_variant')`**: Expression to select variants with the effect 'missense_variant'.
+
+**Parameters Explained:**
+
+- **`ANN[*].EFFECT`**: Accesses the 'EFFECT' field in the 'ANN' (annotations) INFO field.
+- **`has 'missense_variant'`**: Checks if the effect is 'missense_variant'.
+- **`annotated_variants.vcf`**: Input VCF file with annotations.
+- **`missense_variants.vcf`**: Output VCF file with selected variants.
+
+**Why This Step is Important:**
+
+- Missense variants can alter protein function and may be associated with diseases like autism.
+- Focuses analysis on potentially impactful variants.
+
+**Alternative Tools:**
+
+- **bcftools view**: Can filter VCF files based on INFO fields.
+- **VEP filter**: For filtering based on annotations.
+
+---
+
+## Alternative Tools and Methods
+
+Throughout the tutorial, we have mentioned alternative tools available for similar tasks. Here's a summary:
+
+- **Alignment:**
+  - **Bowtie2**
+  - **HISAT2**
+- **Variant Calling:**
+  - **FreeBayes**
+  - **Samtools mpileup** and **bcftools**
+- **Variant Annotation:**
+  - **ANNOVAR**
+  - **Ensembl VEP**
+- **Quality Control and Trimming:**
+  - **FastP**
+  - **Trim Galore**
+- **Variant Filtering:**
+  - **bcftools filter**
+  - **GATK VQSR** (for larger datasets)
+
+**Choosing Tools:**
+
+- The choice of tools may depend on factors like dataset size, computational resources, specific requirements of the analysis, and personal preference.
+
+---
+
+## Conclusion
+
+This tutorial has guided you through a comprehensive NGS data analysis pipeline, providing detailed explanations suitable for beginners. By working through each step, you have learned:
+
+- How to download and assess raw sequencing data.
+- The importance of read alignment and how to perform it.
+- Post-alignment processing steps to prepare data for variant calling.
+- How to perform variant calling and filtering to obtain high-confidence variants.
+- Annotating variants to understand their potential biological impact.
+- Extracting variants of particular interest for further analysis.
+
+**Next Steps:**
+
+- **Interpretation:** Analyze the missense variants to identify those that may be associated with autism.
+- **Visualization:** Use tools like IGV (Integrative Genomics Viewer) to visualize variants in the genome context.
+- **Functional Analysis:** Investigate the genes affected by the variants for known associations with autism.
+- **Validation:** Consider experimental validation of significant variants.
 
 ---
 
 ## Additional Resources
 
-- **BWA Documentation:** [http://bio-bwa.sourceforge.net/](http://bio-bwa.sourceforge.net/)
-- **Samtools Documentation:** [http://www.htslib.org/doc/samtools.html](http://www.htslib.org/doc/samtools.html)
-- **FastQC Documentation:** [https://www.bioinformatics.babraham.ac.uk/projects/fastqc/](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/)
-- **Picard Tools:** [https://broadinstitute.github.io/picard/](https://broadinstitute.github.io/picard/)
-- **snpEff Documentation:** [http://snpeff.sourceforge.net/](http://snpeff.sourceforge.net/)
-- **GATK Documentation:** [https://gatk.broadinstitute.org/hc/en-us](https://gatk.broadinstitute.org/hc/en-us)
-- **SRA Toolkit Documentation:** [https://github.com/ncbi/sra-tools](https://github.com/ncbi/sra-tools)
+- **GATK Best Practices:** [https://gatk.broadinstitute.org/hc/en-us/articles/360035535912](https://gatk.broadinstitute.org/hc/en-us/articles/360035535912)
+- **snpEff Manual:** [http://snpeff.sourceforge.net/SnpEff_manual.html](http://snpeff.sourceforge.net/SnpEff_manual.html)
+- **SnpSift Documentation:** [http://snpeff.sourceforge.net/SnpSift.html](http://snpeff.sourceforge.net/SnpSift.html)
+- **Biostars Community:** [https://www.biostars.org/](https://www.biostars.org/) - A helpful forum for bioinformatics questions.
+- **SeqAnswers Forum:** [http://seqanswers.com/](http://seqanswers.com/) - Another community resource.
 
 ---
 
-**Note:** Always ensure that you are using compatible versions of tools and reference genomes to avoid inconsistencies. For instance, when using the hg38 reference genome, make sure to download the corresponding snpEff database (`GRCh38.99`) to match the genome build. Regularly update your tools and databases to utilize the latest features and improvements.
+**Note:** Bioinformatics is a rapidly evolving field. Always check for the latest versions of tools and updated best practices. The versions used in this tutorial are:
+
+- **BWA:** Version 0.7.17 or higher
+- **Samtools:** Version 1.9 or higher
+- **Picard Tools:** Version 2.18.1 or higher
+- **GATK:** Version 4.x
+- **snpEff:** Version 5.0 or higher
+
+**Disclaimer:** Ensure you have appropriate permissions and comply with any data usage policies when working with human genomic data.
+
+---
+
+**Happy Analyzing!**
+
