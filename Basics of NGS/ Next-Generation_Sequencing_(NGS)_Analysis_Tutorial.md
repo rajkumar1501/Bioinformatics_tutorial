@@ -76,18 +76,177 @@ Ensure that the following software is installed on your system:
 - **SnpSift** (part of snpEff)
 
 ### Installation Resources
+Before beginning the NGS analysis, ensure that your Linux system is up-to-date and properly configured.
 
-- **Java:** [Install OpenJDK](https://openjdk.java.net/install/)
-- **BWA:** [BWA Installation Guide](http://bio-bwa.sourceforge.net/bwa.shtml#13)
-- **Samtools:** [Samtools Installation Guide](http://www.htslib.org/download/)
-- **FastQC:** [FastQC Installation Guide](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/)
-- **Picard Tools:** [Picard Installation Guide](https://broadinstitute.github.io/picard/)
-- **GATK:** [GATK Installation Guide](https://gatk.broadinstitute.org/hc/en-us/articles/360035889991)
-- **snpEff:** [snpEff Installation Guide](http://snpeff.sourceforge.net/download.html)
-- **SRA Toolkit:** [SRA Toolkit Installation Guide](https://github.com/ncbi/sra-tools/wiki/01.-Downloading-SRA-Toolkit)
-- **Tabix:** [htslib Installation Guide](http://www.htslib.org/download/)
+1. **Update the System:**
+
+   ```bash
+   sudo apt-get update
+   sudo apt-get upgrade -y
+   ```
+
+2. **Verify the Current Directory:**
+
+   ```bash
+   pwd
+   ls
+   ```
+
+3. **Create a Working Directory for the NGS Course:**
+
+   ```bash
+   mkdir ~/NGS_course
+   cd ~/NGS_course/
+   ```
 
 ---
+
+## Installing Required Applications
+
+Several bioinformatics tools are essential for NGS analysis. Below are the installation steps for each tool.
+
+### 1. **BWA (Burrows-Wheeler Aligner)**
+
+BWA is used for aligning sequencing reads to a reference genome.
+
+```bash
+sudo apt-get install bwa -y
+```
+
+### 2. **Samtools**
+
+Samtools is used for manipulating SAM/BAM files.
+
+```bash
+sudo apt-get install samtools -y
+```
+
+### 3. **FastQC**
+
+FastQC is a quality control tool for high-throughput sequence data.
+
+```bash
+sudo apt-get install fastqc -y
+```
+
+### 4. **Tabix**
+
+Tabix indexes genomic data in TAB-delimited files.
+
+```bash
+sudo apt-get install tabix -y
+```
+
+### 5. **Picard Tools**
+
+Picard is a set of command-line tools for manipulating high-throughput sequencing (HTS) data and formats.
+
+- **Download Picard:**
+
+  ```bash
+  wget https://github.com/broadinstitute/picard/releases/download/2.18.1/picard.jar
+  ```
+
+### 6. **snpEff**
+
+snpEff is a tool for annotating and predicting the effects of genetic variants.
+
+- **Download snpEff:**
+
+  ```bash
+  wget https://snpeff.blob.core.windows.net/databases/v5_0/snpEff_v5_0_GRCh37.75.zip
+  ```
+
+- **Unzip snpEff:**
+
+  ```bash
+  unzip snpEff_v5_0_GRCh37.75.zip
+  cd snpEff_latest_core/snpEff/
+  ```
+
+- **Verify Available Databases:**
+
+  ```bash
+  java -jar snpEff.jar databases | grep -i homo_sapiens
+  ```
+
+### 7. **GATK (Genome Analysis Toolkit)**
+
+GATK is used for variant discovery in high-throughput sequencing data.
+
+- **Download GATK:**
+
+  ```bash
+  wget https://github.com/broadinstitute/gatk/releases/download/4.6.0.0/gatk-4.6.0.0.zip
+  unzip gatk-4.6.0.0.zip
+  ```
+
+- **Move GATK Jar to Working Directory:**
+
+  ```bash
+  mv gatk-4.6.0.0/gatk-package-4.6.0.0-local.jar ~/NGS_course/
+  ```
+
+### 8. **sra-toolkit**
+
+The SRA Toolkit is used for downloading and converting SRA data to FASTQ format.
+
+- **Download SRA Toolkit:**
+
+  ```bash
+  wget https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/sratoolkit.current-ubuntu64.tar.gz
+  tar -xzf sratoolkit.current-ubuntu64.tar.gz
+  cd sratoolkit.3.1.1-ubuntu64/
+  ```
+
+- **Add SRA Toolkit to PATH:**
+
+  ```bash
+  echo "export PATH=$(pwd)/bin:\$PATH" >> ~/.bashrc
+  source ~/.bashrc
+  ```
+
+### 9. **Additional Utilities**
+
+Install additional necessary utilities:
+
+```bash
+sudo apt-get install libxml2-utils -y
+```
+
+---
+
+## Downloading Reference Genomes and Databases
+
+### 1. **Human Reference Genome (hg38)**
+
+Download the human reference genome (GRCh38/hg38):
+
+```bash
+cd ~/NGS_course/
+wget https://hgdownload.cse.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz
+```
+
+- **Verify Download and Cleanup:**
+
+  ```bash
+  ls
+  du -sh hg38.fa.gz
+  ```
+
+### 2. **dbSNP Database**
+
+Download the dbSNP VCF file for variant annotation:
+
+```bash
+cd ~/NGS_course/snpEff_latest_core/snpEff/
+wget https://ftp.ncbi.nih.gov/snp/organisms/human_9606_b151_GRCh38p7/VCF/GATK/common_all_20180418.vcf.gz
+mv common_all_20180418.vcf.gz common_dbsnp.vcf.gz
+```
+
+---
+
+
 
 ## Setting Up the Working Environment
 
