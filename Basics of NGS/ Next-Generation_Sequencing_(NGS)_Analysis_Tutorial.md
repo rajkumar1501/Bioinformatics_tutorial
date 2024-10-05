@@ -6,30 +6,6 @@ We will use a publicly available dataset (SRA accession number: **SRR26688467**)
 
 ---
 
-## Table of Contents
-
-1. [Introduction](#introduction)
-2. [Prerequisites](#prerequisites)
-3. [Setting Up the Working Environment](#setting-up-the-working-environment)
-4. [Overview of the Analysis Pipeline](#overview-of-the-analysis-pipeline)
-5. [Detailed Step-by-Step Tutorial](#detailed-step-by-step-tutorial)
-    - [Step 1: Data Acquisition](#step-1-data-acquisition)
-    - [Step 2: Quality Assessment with FastQC](#step-2-quality-assessment-with-fastqc)
-    - [Step 3: Preparing the Reference Genome](#step-3-preparing-the-reference-genome)
-    - [Step 4: Read Alignment with BWA MEM](#step-4-read-alignment-with-bwa-mem)
-    - [Step 5: Converting and Sorting Alignments](#step-5-converting-and-sorting-alignments)
-    - [Step 6: Marking Duplicates](#step-6-marking-duplicates)
-    - [Step 7: Base Quality Score Recalibration (BQSR)](#step-7-base-quality-score-recalibration-bqsr)
-    - [Step 8: Variant Calling with GATK HaplotypeCaller](#step-8-variant-calling-with-gatk-haplotypecaller)
-    - [Step 9: Variant Filtering](#step-9-variant-filtering)
-    - [Step 10: Variant Annotation with snpEff](#step-10-variant-annotation-with-snpeff)
-    - [Step 11: Extracting Specific Variants with SnpSift](#step-11-extracting-specific-variants-with-snpsift)
-6. [Alternative Tools and Methods](#alternative-tools-and-methods)
-7. [Conclusion](#conclusion)
-8. [Additional Resources](#additional-resources)
-
----
-
 ## Introduction
 
 ### Study Overview
@@ -1511,7 +1487,6 @@ We'll delve into two pivotal steps of the NGS pipeline:
 2. **Step 11: Variant Calling with GATK HaplotypeCaller**
 
 Understanding these steps is crucial for ensuring the accuracy and reliability of your variant calls, which are fundamental for downstream analyses like association studies and functional genomics. We'll explore the commands involved, the purpose of each step, the associated file formats, and best practices to optimize your analysis.
-
 
 ---
 
