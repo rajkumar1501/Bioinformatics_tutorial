@@ -1885,194 +1885,293 @@ Variant calling with GATK HaplotypeCaller is a sophisticated process that levera
 
 ---
 
+Here's an overview of the steps we'll cover:
 
-### Step 9: Variant Filtering
+1. **Step 12:** Select SNPs and INDELs from the VCF file using GATK SelectVariants.
+2. **Step 13:** Filter SNPs and INDELs based on quality metrics using GATK VariantFiltration.
+3. **Step 14:** Annotate variants using **snpEff** to predict their functional effects.
+4. **Step 15:** Extract missense variants using **SnpSift** for focused analysis.
 
-**Objective:** Apply quality filters to the called variants to improve reliability.
+---
 
-**Commands:**
+## **Step 12: Select SNPs and INDELs from the VCF File**
+
+### **Overview**
+
+After variant calling (e.g., using GATK HaplotypeCaller), the resulting VCF (Variant Call Format) file contains a mixture of different types of variants, including Single Nucleotide Polymorphisms (SNPs) and Insertions/Deletions (INDELs). To apply appropriate filtering criteria and downstream analyses, it's often necessary to separate these variant types into distinct files.
+
+### **Algorithm and Tool**
+
+- **Tool Used:** **GATK SelectVariants**
+- **Purpose:** Selects subsets of variants from a VCF file based on specified criteria, such as variant type, regions, or annotations.
+- **Algorithm:**
+  - **Input Parsing:** Reads the input VCF file and reference genome.
+  - **Variant Selection:** Evaluates each variant against selection criteria.
+    - For SNPs: Includes variants classified as SNPs.
+    - For INDELs: Includes variants classified as INDELs.
+  - **Output Generation:** Writes selected variants to a new VCF file.
+
+### **Commands and Parameters**
+
+#### **Selecting SNPs**
 
 ```bash
-java -jar ~/NGS_tutorial/tools/gatk.jar VariantFiltration \
--R ~/NGS_tutorial/data/references/hg38.fa \
--V raw_variants.vcf \
---filter-name "QD_filter" \
---filter-expression "QD < 2.0" \
---filter-name "FS_filter" \
---filter-expression "FS > 60.0" \
---filter-name "MQ_filter" \
---filter-expression "MQ < 40.0" \
---filter-name "SOR_filter" \
---filter-expression "SOR > 4.0" \
--O filtered_variants.vcf
+$gatk SelectVariants \
+    -R ~/NGS_course/data/references/$ref \
+    -V ~/NGS_course/results/variants/raw_variants.vcf \
+    --select-type-to-include SNP \
+    -O ~/NGS_course/results/variants/raw_snps.vcf
 ```
 
-**Explanation:**
+- **Parameters:**
+  - **`-R`**: Specifies the reference genome file.
+  - **`-V`**: Specifies the input VCF file containing raw variants.
+  - **`--select-type-to-include SNP`**: Instructs the tool to include only variants of type SNP.
+  - **`-O`**: Specifies the output file for the selected SNPs.
 
-- **`VariantFiltration`**: Applies filters to variants based on specified criteria.
-
-**Parameters Explained:**
-
-- **`--filter-name "QD_filter"`**: Names the filter for variants failing the following expression.
-- **`--filter-expression "QD < 2.0"`**: Quality by Depth less than 2.0.
-- **`FS > 60.0`**, **`MQ < 40.0`**, **`SOR > 4.0`**: Other quality metrics.
-
-**Quality Metrics Explained:**
-
-- **QD (Quality by Depth):** Variant confidence normalized by depth.
-- **FS (Fisher Strand):** Strand bias.
-- **MQ (Mapping Quality):** Root mean square of mapping quality.
-- **SOR (Strand Odds Ratio):** Strand bias using a symmetric odds ratio test.
-
-**Why This Step is Important:**
-
-- Removes likely false positives and low-quality variants.
-
-**Alternative Tools:**
-
-- **VQSR (Variant Quality Score Recalibration)** in GATK (requires large datasets).
-- **bcftools filter**: For filtering VCF files.
-
----
-
-### Step 10: Variant Annotation with snpEff
-
-**Objective:** Annotate variants to predict their effects on genes and proteins.
-
-**Command:**
+#### **Selecting INDELs**
 
 ```bash
-java -jar ~/NGS_tutorial/tools/snpEff/snpEff.jar -v GRCh38.99 \
-filtered_variants.vcf > annotated_variants.vcf
+$gatk SelectVariants \
+    -R ~/NGS_course/data/references/$ref \
+    -V ~/NGS_course/results/variants/raw_variants.vcf \
+    --select-type-to-include INDEL \
+    -O ~/NGS_course/results/variants/raw_indels.vcf
 ```
 
-**Explanation:**
+- **Parameters:**
+  - **`--select-type-to-include INDEL`**: Instructs the tool to include only variants of type INDEL.
+  - Other parameters are the same as in the SNP selection command.
 
-- **`snpEff`**: Annotates variants with information like gene function and effect.
-- **`-v`**: Verbose mode.
-- **`GRCh38.99`**: Database version matching the reference genome.
+### **Key Points**
 
-**Parameters Explained:**
-
-- **`-v`**: Provides detailed logging information.
-- **`GRCh38.99`**: Ensures annotations match the genome build used.
-- **`filtered_variants.vcf`**: Input VCF file after filtering.
-- **`annotated_variants.vcf`**: Output annotated VCF file.
-
-**Why This Step is Important:**
-
-- Adds biological context to variants, facilitating interpretation.
-
-**Alternative Tools:**
-
-- **ANNOVAR**: A tool for variant annotation.
-- **VEP (Variant Effect Predictor)** from Ensembl.
+- **Variant Types:** Separating SNPs and INDELs allows for tailored filtering criteria, as these variant types have different error profiles and quality considerations.
+- **Flexibility:** `SelectVariants` can also be used to select variants based on other criteria, such as specific regions, sample names, or annotations.
 
 ---
 
-### Step 11: Extracting Specific Variants with SnpSift
+## **Step 13: Filter SNPs and INDELs Based on Quality Metrics**
 
-**Objective:** Extract variants of interest, such as missense variants, from the annotated VCF file.
+### **Overview**
 
-**Command:**
+Raw variant calls may include false positives due to sequencing errors, alignment artifacts, or other technical issues. Applying quality filters helps identify and flag variants that may be unreliable, improving the overall accuracy of downstream analyses.
+
+### **Algorithm and Tool**
+
+- **Tool Used:** **GATK VariantFiltration**
+- **Purpose:** Applies user-defined filters to variants based on various quality metrics, annotating those that fail the criteria.
+- **Algorithm:**
+  - **Input Parsing:** Reads the input VCF file and reference genome.
+  - **Filter Evaluation:** For each variant, evaluates specified filter expressions.
+  - **Filtering Actions:**
+    - **Pass Variants:** Variants meeting all criteria are left unannotated.
+    - **Fail Variants:** Variants failing any filter are annotated with the corresponding filter name.
+  - **Output Generation:** Writes variants to a new VCF file, with filter annotations as needed.
+
+### **Commands and Parameters**
+
+#### **Filtering SNPs**
 
 ```bash
-java -jar ~/NGS_tutorial/tools/snpEff/SnpSift.jar filter \
-"(ANN[*].EFFECT has 'missense_variant')" \
-annotated_variants.vcf > missense_variants.vcf
+$gatk VariantFiltration \
+    -R ~/NGS_course/data/references/$ref \
+    -V ~/NGS_course/results/variants/raw_snps.vcf \
+    --filter-name "QD_filter" \
+    --filter-expression "QD < 2.0" \
+    --filter-name "FS_filter" \
+    --filter-expression "FS > 60.0" \
+    --filter-name "MQ_filter" \
+    --filter-expression "MQ < 40.0" \
+    --filter-name "SOR_filter" \
+    --filter-expression "SOR > 4.0" \
+    -O ~/NGS_course/results/variants/filtered_snps.vcf
 ```
 
-**Explanation:**
+- **Parameters:**
+  - **`-R`**: Reference genome file.
+  - **`-V`**: Input VCF file containing SNPs.
+  - **`--filter-name` and `--filter-expression`**: Specify filters to apply.
+    - **Filter Names and Expressions:**
+      - **`"QD_filter"` with `"QD < 2.0"`**: Filters variants with Quality by Depth (QD) less than 2.0.
+      - **`"FS_filter"` with `"FS > 60.0"`**: Filters variants with Fisher Strand (FS) values greater than 60.0, indicating strand bias.
+      - **`"MQ_filter"` with `"MQ < 40.0"`**: Filters variants with Mapping Quality (MQ) less than 40.0.
+      - **`"SOR_filter"` with `"SOR > 4.0"`**: Filters variants with Strand Odds Ratio (SOR) greater than 4.0.
+  - **`-O`**: Output file for the filtered SNPs.
 
-- **`SnpSift filter`**: Filters VCF files based on expressions.
-- **`(ANN[*].EFFECT has 'missense_variant')`**: Expression to select variants with the effect 'missense_variant'.
+#### **Filtering INDELs**
 
-**Parameters Explained:**
+```bash
+$gatk VariantFiltration \
+    -R ~/NGS_course/data/references/$ref \
+    -V ~/NGS_course/results/variants/raw_indels.vcf \
+    --filter-name "QD_filter" \
+    --filter-expression "QD < 2.0" \
+    --filter-name "FS_filter" \
+    --filter-expression "FS > 200.0" \
+    --filter-name "SOR_filter" \
+    --filter-expression "SOR > 10.0" \
+    -O ~/NGS_course/results/variants/filtered_indels.vcf
+```
 
-- **`ANN[*].EFFECT`**: Accesses the 'EFFECT' field in the 'ANN' (annotations) INFO field.
-- **`has 'missense_variant'`**: Checks if the effect is 'missense_variant'.
-- **`annotated_variants.vcf`**: Input VCF file with annotations.
-- **`missense_variants.vcf`**: Output VCF file with selected variants.
+- **Parameters:**
+  - Similar to SNP filtering, but with adjusted thresholds for INDELs.
+  - **Adjusted Filter Expressions for INDELs:**
+    - **`FS > 200.0`**: Higher threshold due to different characteristics of INDELs.
+    - **`SOR > 10.0`**: Adjusted threshold reflecting the typical strand bias in INDELs.
 
-**Why This Step is Important:**
+### **Explanation of Quality Metrics**
 
-- Missense variants can alter protein function and may be associated with diseases like autism.
-- Focuses analysis on potentially impactful variants.
+- **Quality by Depth (QD):**
+  - **Definition:** Variant confidence (QUAL) normalized by depth of non-reference samples.
+  - **Interpretation:** Low QD may indicate false positives due to low supporting evidence.
+- **Fisher Strand (FS):**
+  - **Definition:** Measures strand bias using Fisher's exact test.
+  - **Interpretation:** High FS values suggest that the variant is observed more on one DNA strand than the other, indicating possible errors.
+- **Mapping Quality (MQ):**
+  - **Definition:** Root Mean Square (RMS) of the mapping qualities of the reads supporting the variant.
+  - **Interpretation:** Low MQ indicates poor alignment quality, increasing the likelihood of false positives.
+- **Strand Odds Ratio (SOR):**
+  - **Definition:** Quantifies strand bias using the symmetric odds ratio test.
+  - **Interpretation:** High SOR values indicate significant strand bias.
 
-**Alternative Tools:**
+### **Key Points**
 
-- **bcftools view**: Can filter VCF files based on INFO fields.
-- **VEP filter**: For filtering based on annotations.
-
----
-
-## Alternative Tools and Methods
-
-Throughout the tutorial, we have mentioned alternative tools available for similar tasks. Here's a summary:
-
-- **Alignment:**
-  - **Bowtie2**
-  - **HISAT2**
-- **Variant Calling:**
-  - **FreeBayes**
-  - **Samtools mpileup** and **bcftools**
-- **Variant Annotation:**
-  - **ANNOVAR**
-  - **Ensembl VEP**
-- **Quality Control and Trimming:**
-  - **FastP**
-  - **Trim Galore**
-- **Variant Filtering:**
-  - **bcftools filter**
-  - **GATK VQSR** (for larger datasets)
-
-**Choosing Tools:**
-
-- The choice of tools may depend on factors like dataset size, computational resources, specific requirements of the analysis, and personal preference.
-
----
-
-## Conclusion
-
-This tutorial has guided you through a comprehensive NGS data analysis pipeline, providing detailed explanations suitable for beginners. By working through each step, you have learned:
-
-- How to download and assess raw sequencing data.
-- The importance of read alignment and how to perform it.
-- Post-alignment processing steps to prepare data for variant calling.
-- How to perform variant calling and filtering to obtain high-confidence variants.
-- Annotating variants to understand their potential biological impact.
-- Extracting variants of particular interest for further analysis.
-
-**Next Steps:**
-
-- **Interpretation:** Analyze the missense variants to identify those that may be associated with autism.
-- **Visualization:** Use tools like IGV (Integrative Genomics Viewer) to visualize variants in the genome context.
-- **Functional Analysis:** Investigate the genes affected by the variants for known associations with autism.
-- **Validation:** Consider experimental validation of significant variants.
+- **Customized Thresholds:** Thresholds are chosen based on empirical observations and GATK best practices, but may need adjustment depending on the dataset.
+- **Filtering Strategy:** Rather than removing variants, they are annotated with filter flags, allowing for flexible inclusion or exclusion in downstream analyses.
+- **Separate Filtering:** SNPs and INDELs are filtered separately due to their different error profiles and characteristics.
 
 ---
 
-## Additional Resources
+## **Step 14: Annotate Variants Using snpEff**
 
-- **GATK Best Practices:** [https://gatk.broadinstitute.org/hc/en-us/articles/360035535912](https://gatk.broadinstitute.org/hc/en-us/articles/360035535912)
-- **snpEff Manual:** [http://snpeff.sourceforge.net/SnpEff_manual.html](http://snpeff.sourceforge.net/SnpEff_manual.html)
-- **SnpSift Documentation:** [http://snpeff.sourceforge.net/SnpSift.html](http://snpeff.sourceforge.net/SnpSift.html)
-- **Biostars Community:** [https://www.biostars.org/](https://www.biostars.org/) - A helpful forum for bioinformatics questions.
-- **SeqAnswers Forum:** [http://seqanswers.com/](http://seqanswers.com/) - Another community resource.
+### **Overview**
+
+Variant annotation involves predicting the potential impact of variants on genes and proteins. **snpEff** is a tool that annotates variants based on genomic coordinates and gene models, providing insights into whether a variant is likely to be benign or deleterious.
+
+### **Algorithm and Tool**
+
+- **Tool Used:** **snpEff**
+- **Purpose:** Predicts the effects of genetic variants (SNPs, INDELs, etc.) on genes and proteins, including coding changes and functional impacts.
+- **Algorithm:**
+  - **Database Loading:** Loads a pre-built database containing gene annotations for the specified organism and genome version.
+  - **Variant Annotation:**
+    - For each variant, determines its location relative to genes (e.g., intronic, exonic, intergenic).
+    - Predicts the effect on coding sequences (e.g., synonymous, missense, nonsense mutations).
+    - Provides detailed annotations, including amino acid changes and predicted impacts.
+  - **Output Generation:** Writes annotated variants to a new VCF file, adding annotations to the INFO field.
+
+### **Commands and Parameters**
+
+#### **Annotating SNPs**
+
+```bash
+$snpEff -v $snpeff_db \
+    ~/NGS_course/results/variants/filtered_snps.vcf \
+    > ~/NGS_course/results/annotations/filtered_snps_ann.vcf
+```
+
+- **Parameters:**
+  - **`-v`**: Enables verbose output for detailed logging.
+  - **`$snpeff_db`**: Specifies the snpEff database to use, corresponding to the reference genome and gene annotations (e.g., `hg38` for human genome version 38).
+  - **Input VCF File:** The filtered SNPs VCF file from the previous step.
+  - **Output Redirection (`>`):** Directs the annotated output to a new VCF file.
+
+#### **Annotating INDELs**
+
+```bash
+$snpEff -v $snpeff_db \
+    ~/NGS_course/results/variants/filtered_indels.vcf \
+    > ~/NGS_course/results/annotations/filtered_indels_ann.vcf
+```
+
+- **Parameters:** Same as for SNPs, but using the filtered INDELs VCF file.
+
+### **Key Points**
+
+- **Comprehensive Annotations:** snpEff provides a wide range of annotations, including gene names, transcript IDs, predicted effects, and more.
+- **Database Selection:** Using the correct snpEff database is crucial to ensure annotations align with the reference genome and gene models used in previous steps.
+- **Annotation Field:** Annotations are added to the `ANN` field in the VCF file's INFO column.
 
 ---
 
-**Note:** Bioinformatics is a rapidly evolving field. Always check for the latest versions of tools and updated best practices. The versions used in this tutorial are:
+## **Step 15: Extract Missense Variants Using SnpSift**
 
-- **BWA:** Version 0.7.17 or higher
-- **Samtools:** Version 1.9 or higher
-- **Picard Tools:** Version 2.18.1 or higher
-- **GATK:** Version 4.x
-- **snpEff:** Version 5.0 or higher
+### **Overview**
 
-**Disclaimer:** Ensure you have appropriate permissions and comply with any data usage policies when working with human genomic data.
+After annotating variants, researchers may be interested in focusing on specific types of variants that are more likely to have functional impacts, such as missense variants. **SnpSift** is a tool that allows for advanced filtering of VCF files based on complex expressions and annotations.
+
+### **Algorithm and Tool**
+
+- **Tool Used:** **SnpSift**
+- **Purpose:** Filters and manipulates VCF files based on user-defined expressions, leveraging annotations added by tools like snpEff.
+- **Algorithm:**
+  - **Input Parsing:** Reads the annotated VCF file.
+  - **Filtering Expression Evaluation:**
+    - Evaluates the filter expression for each variant.
+    - The expression can access annotations and variant properties.
+  - **Variant Selection:**
+    - Includes variants that satisfy the filter expression.
+  - **Output Generation:** Writes selected variants to a new VCF file.
+
+### **Command and Parameters**
+
+```bash
+$snpSift filter "(ANN[*].EFFECT = 'missense_variant')" \
+    ~/NGS_course/results/annotations/filtered_snps_ann.vcf \
+    > ~/NGS_course/results/annotations/missense_snps.vcf
+```
+
+- **Parameters:**
+  - **`filter`**: Specifies the SnpSift sub-command for filtering.
+  - **Filter Expression:**
+    - **`(ANN[*].EFFECT = 'missense_variant')`**: The expression selects variants where any of the annotations (`ANN` field) have an `EFFECT` equal to `'missense_variant'`.
+    - **`ANN[*]`**: The asterisk (`*`) indicates that the expression should be evaluated over all annotations in the `ANN` field.
+  - **Input VCF File:** The annotated SNPs VCF file from snpEff.
+  - **Output Redirection (`>`):** Directs the filtered output to a new VCF file containing only missense variants.
+
+### **Key Points**
+
+- **Expression Language:** SnpSift uses a powerful expression language that allows for complex queries on variant annotations and properties.
+- **Targeted Variant Selection:** Extracting missense variants focuses on variants that result in amino acid changes in proteins, which are more likely to affect protein function.
+- **Flexible Filtering:** The filter expression can be modified to select other types of variants or apply additional criteria.
 
 ---
 
-**Happy Analyzing!**
+## **Summary and Key Takeaways**
 
+- **Step 12:** **GATK SelectVariants** is used to separate SNPs and INDELs from a mixed-variant VCF file, enabling tailored filtering and analysis strategies for each variant type.
+- **Step 13:** **GATK VariantFiltration** applies quality filters to SNPs and INDELs based on metrics like Quality by Depth (QD), Fisher Strand (FS), Mapping Quality (MQ), and Strand Odds Ratio (SOR), annotating low-quality variants for potential exclusion in downstream analyses.
+- **Step 14:** **snpEff** annotates variants with predicted functional effects, adding valuable biological context to the variants by predicting their impact on genes and proteins.
+- **Step 15:** **SnpSift** filters the annotated variants to extract those of particular interest, such as missense variants, using flexible expressions to query variant annotations.
+
+---
+
+## **Best Practices and Considerations**
+
+1. **Adjusting Filters Based on Data:**
+   - The thresholds used in variant filtering (e.g., QD < 2.0) are based on general best practices but may need adjustment depending on the specific dataset and quality metrics observed.
+   - Review the distribution of quality metrics in your data to set appropriate filters.
+
+2. **Annotation Database Consistency:**
+   - Ensure that the snpEff database version matches the reference genome and annotation versions used in earlier steps to prevent inconsistencies.
+   - Update the snpEff database if newer annotations are available and relevant to your study.
+
+3. **Interpreting Annotations Carefully:**
+   - While tools like snpEff provide predicted effects, these are computational predictions that may require validation.
+   - Consider integrating additional annotation tools or databases for a more comprehensive analysis.
+
+4. **Flexible Filtering with SnpSift:**
+   - Leverage the power of SnpSift's expression language to tailor variant selection to your research questions.
+   - Combine multiple criteria in the filter expression to refine your variant list further.
+
+5. **Documentation and Reproducibility:**
+   - Keep detailed records of the commands, parameters, and versions of tools used to ensure reproducibility.
+   - Consider automating the pipeline using workflow management tools for scalability and consistency.
+
+---
+
+## **Conclusion**
+
+By carefully selecting, filtering, annotating, and extracting variants based on quality metrics and predicted effects, you enhance the reliability and relevance of your genetic variant analysis. These steps are critical for focusing on variants that are most likely to contribute to phenotypic differences or disease, thereby facilitating meaningful biological interpretations and discoveries.
+
+Feel free to ask any questions or request further clarification on any of these steps or the algorithms and parameters involved!
