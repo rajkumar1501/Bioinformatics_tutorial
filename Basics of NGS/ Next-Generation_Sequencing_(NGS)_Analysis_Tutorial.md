@@ -2174,4 +2174,82 @@ $snpSift filter "(ANN[*].EFFECT = 'missense_variant')" \
 
 By carefully selecting, filtering, annotating, and extracting variants based on quality metrics and predicted effects, you enhance the reliability and relevance of your genetic variant analysis. These steps are critical for focusing on variants that are most likely to contribute to phenotypic differences or disease, thereby facilitating meaningful biological interpretations and discoveries.
 
-Feel free to ask any questions or request further clarification on any of these steps or the algorithms and parameters involved!
+# Tutorial: Finding Variants for Autism
+
+This tutorial will guide you through the process of annotating a VCF file with RS IDs to find variants related to autism. You will use `bcftools` to annotate the VCF file with RS IDs from a reference VCF database.
+
+## Step-by-Step Commands
+
+### 1. **Compress the VCF file using `bgzip`**
+Compress your VCF file (`filtered_snps.vcf`) to prepare it for annotation.
+```bash
+bgzip filtered_snps.vcf
+```
+
+### 2. **Index the compressed VCF file using `tabix`**
+Index the compressed VCF file for efficient access.
+```bash
+tabix -p vcf filtered_snps.vcf.gz
+```
+
+### 3. **Ensure the reference VCF is compressed and indexed**
+If the reference VCF file (`common_dbsnp.vcf.gz`) is not already indexed, you need to index it.
+```bash
+tabix -p vcf ../../data/references/common_dbsnp.vcf.gz
+```
+
+### 4. **Annotate the VCF file with RS IDs using `bcftools`**
+Run the annotation command to add RS IDs to your VCF file.
+```bash
+bcftools annotate -a ../../data/references/common_dbsnp.vcf.gz -c ID filtered_snps.vcf.gz -o filtered_snps_with_rsid.vcf
+```
+
+### 5. **Inspect the output VCF**
+After annotation, you can open `filtered_snps_with_rsid.vcf` to see the RS IDs added to the variants.
+
+---
+
+
+# Tutorial: Running the Python Script for RSID Detection
+
+This tutorial will guide you through running the Python script for detecting RSIDs associated with genetic traits, using a VCF file as input.
+
+## Prerequisites:
+1. **Python installed** on your system (version 3.x).
+2. **VCF file** containing the genetic variants.
+
+### Step-by-Step Commands
+
+1. **Open a terminal (Linux/Mac) or Command Prompt (Windows)**.
+
+2. **Navigate to the directory** where your Python script is located:
+   ```bash
+   cd /path/to/your/python/script
+   ```
+
+3. **Run the Python script** with the VCF file as input:
+   ```bash
+   python your_script.py path_to_your_vcf_file.vcf
+   ```
+
+   - Replace `your_script.py` with the name of your Python file.
+   - Replace `path_to_your_vcf_file.vcf` with the path to your VCF file.
+
+4. **View the results**:
+   - The script will parse the VCF file, detect RSIDs associated with specific traits, and print the results directly in the terminal.
+
+---
+
+### Example Command:
+
+```bash
+python rsid_detector.py filtered_snps.vcf
+```
+
+In this example:
+- `rsid_detector.py` is the Python script.
+- `filtered_snps.vcf` is the VCF file containing genetic variants.
+
+### Common Issues:
+- If you encounter a "Command not found" error, make sure Python is correctly installed and added to your system’s PATH.
+- Ensure the VCF file is in the correct format (with valid RSID entries).
